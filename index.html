@@ -55,8 +55,8 @@ main{flex:1;display:flex;min-height:0;}
   padding:0 5px;border-radius:3px;color:#ddd;z-index:2;}
 .slot .vid{position:absolute;right:4px;bottom:3px;font-size:10px;background:rgba(232,163,61,.9);
   color:#1a1207;padding:0 4px;border-radius:3px;z-index:2;font-weight:700;}
-.scene .foot{display:flex;align-items:center;gap:6px;margin-top:6px;color:var(--dim);font-size:11px;}
-.scene .foot input{width:56px;}
+.scene .foot{display:flex;align-items:center;gap:6px;margin-top:6px;color:var(--dim);font-size:11px;flex-wrap:wrap;}
+.scene .foot input{width:48px;}
 #addScene{margin:0 10px 12px;flex:none;}
 /* ---- 中：视口 ---- */
 #center{flex:1;display:flex;flex-direction:column;min-width:0;background:#0b0c0e;}
@@ -254,7 +254,7 @@ const state = {
   skipIntro: false, lang: 'zh',
   playing: false, t: 0,
 };
-function newScene(){ return { mode:'spread', spread:null, left:null, right:null, hold:'', rate:'' }; }
+function newScene(){ return { mode:'spread', spread:null, left:null, right:null, hold:'', rate:'', flip:'' }; }
 
 /* ---------- 界面语言 ---------- */
 const JA_MAP = {
@@ -287,7 +287,9 @@ const JA_MAP = {
   '根部鼓起：翻页时折缝向上拱起的高度。书沟深度调 0 = 中缝完全平整。消隐时机：翻页进度到多少开始淡出删除（越晚，半透明重影越不明显）；消隐长度：淡出用时占比。':'根元の膨らみ：ページをめくる際に折り目が上に盛り上がる高さ。ノドの深さを 0 にすると完全にフラット。フェード開始：めくり進行のどこからフェード消去を始めるか（遅いほど半透明の残像が目立たない）。フェード時間：フェードに使う進行割合。',
   '折痕光影 Crease':'折り目の陰影 Crease','左页阴影':'左ページの影','左页范围':'左ページの範囲','左页颜色':'左ページの色','右页阴影':'右ページの影','右页范围':'右ページの範囲','右页颜色':'右ページの色','折痕高光':'折り目のハイライト',
   '纯视觉叠加层（非真实光照）：左右页阴影的强度、范围、颜色可分别调整。':'純粋な視覚オーバーレイ（実際の照明ではない）：左右ページの影の強さ・範囲・色を個別に調整できます。',
-  '停留(s)':'停留(s)','速度×':'速度×'
+  '停留(s)':'停留(s)','速度×':'速度×','翻页(s)':'めくり(s)',
+  '该页翻走的时长，留空 = 全局翻页时长':'このページをめくる時間。空欄＝全体のめくり時間',
+  'めくり時間':'めくり時間'
 };
 const EN_MAP = {
   '导出 PNG 序列':'Export PNG Seq','导出视频':'Export Video',
@@ -317,7 +319,8 @@ const EN_MAP = {
   '导出视频：实时录制，Chrome 输出 MP4/WebM。导出 PNG 序列：逐帧无损（需 Chrome，选择保存文件夹）。':'Export Video: realtime recording (MP4/WebM in Chrome). PNG Sequence: lossless frame-by-frame (Chrome only; pick a folder).',
   '根部鼓起：翻页时折缝向上拱起的高度。书沟深度调 0 = 中缝完全平整。消隐时机：翻页进度到多少开始淡出删除（越晚，半透明重影越不明显）；消隐长度：淡出用时占比。':'Root Bulge: how high the fold arches during a flip. Gutter Depth 0 = perfectly flat center. Fade Start: at what flip progress the page starts fading out (later = less ghosting). Fade Length: how much of the flip the fade takes.',
   '纯视觉叠加层（非真实光照）：左右页阴影的强度、范围、颜色可分别调整。':'Pure visual overlay (not real lighting): shadow strength, range and color adjustable per side.',
-  '停留(s)':'Hold(s)','速度×':'Speed×'
+  '停留(s)':'Hold(s)','速度×':'Speed×','翻页(s)':'Flip(s)',
+  '该页翻走的时长，留空 = 全局翻页时长':'Flip-away duration for this page; blank = global Flip Duration'
 };
 const HELP = {
 zh: `<h2>使用说明</h2>
@@ -326,7 +329,8 @@ zh: `<h2>使用说明</h2>
 <ul><li>每个 Scene 是书的一个对页。<b>跨页</b> = 一张 16:9 素材横跨左右两页；<b>双页</b> = 左右各一张 900×950 素材。</li>
 <li>点击槽位上传图片或视频；拖动卡片可调整顺序；✕ 删除场景；＋ 添加场景（最多 18 个）。</li>
 <li><b>停留(s)</b>：留空 = 自动（图片用「每页停留」，视频播完整段）；填数字 = 手动指定。</li>
-<li><b>速度×</b>：该场景视频的播放倍速（0.25–4）。</li></ul>
+<li><b>速度×</b>：该场景视频的播放倍速（0.25–4）。</li>
+<li><b>翻页(s)</b>：该页翻走的时长，留空 = 全局「翻页时长」。每页可不同。</li></ul>
 <h4>2 · 时间轴与视频规则</h4>
 <ul><li>流程：开场静止 → 开书 → 每页「停留 + 翻页」→ 结尾停留。点击场景卡片可直接跳到该页预览。</li>
 <li>视频场景自动停留 = 视频时长 ÷ 倍速，完整播一遍后定格在最后一帧，不循环。</li>
@@ -349,7 +353,8 @@ ja: `<h2>使用ガイド</h2>
 <ul><li>各 Scene は見開き 1 組。<b>見開き</b> = 16:9 素材 1 枚を左右にまたいで表示。<b>左右別</b> = 900×950 素材を左右 1 枚ずつ。</li>
 <li>スロットをクリックして画像 / 動画をアップロード。カードのドラッグで並べ替え、✕ で削除、＋ で追加（最大 18）。</li>
 <li><b>停留(s)</b>：空欄 = 自動（画像は「ページ停留」、動画は最後まで再生）。数値入力 = 手動指定。</li>
-<li><b>速度×</b>：このシーンの動画再生倍率（0.25–4）。</li></ul>
+<li><b>速度×</b>：このシーンの動画再生倍率（0.25–4）。</li>
+<li><b>めくり(s)</b>：このページをめくる時間。空欄＝全体の「めくり時間」。ページごとに変えられます。</li></ul>
 <h4>2 · タイムラインと動画のルール</h4>
 <ul><li>流れ：冒頭静止 → 開帳 → 各ページ「停留 + めくり」→ 末尾停留。シーンカードをクリックすると該当ページへジャンプ。</li>
 <li>動画シーンの自動停留 = 動画長 ÷ 倍率。1 回だけ再生し、最終フレームで静止（ループなし）。</li>
@@ -372,7 +377,8 @@ en: `<h2>User Guide</h2>
 <ul><li>Each Scene is one open spread. <b>Spread</b> = one 16:9 asset across both pages; <b>Dual</b> = separate 900×950 assets left and right.</li>
 <li>Click a slot to upload an image or video. Drag cards to reorder, ✕ to delete, + to add (max 18).</li>
 <li><b>Hold(s)</b>: leave blank = automatic (images use "Page Hold", videos play in full); enter a number to override.</li>
-<li><b>Speed×</b>: video playback rate for that scene (0.25–4).</li></ul>
+<li><b>Speed×</b>: video playback rate for that scene (0.25–4).</li>
+<li><b>Flip(s)</b>: flip-away duration for that page; blank = the global Flip Duration. Can differ per page.</li></ul>
 <h4>2 · Timeline & video rules</h4>
 <ul><li>Flow: intro hold → open → per-page "hold + flip" → end hold. Click a scene card to jump to that page.</li>
 <li>A video scene's automatic hold = video length ÷ speed. Videos play once and freeze on the last frame (no looping).</li>
@@ -1192,10 +1198,14 @@ function sceneHold(i){
   if(isFinite(h) && h > 0) return h;          // 手动填写优先
   const vd = sceneVideoDur(i);
   if(vd > 0){                                  // 视频：完整播完（翻页时机可调，另扣除翻入时间）
-    const d = vd / sceneRate(i) - state.flipLead - (i > 0 ? state.flipDur : 0);
+    const d = vd / sceneRate(i) - state.flipLead - (i > 0 ? sceneFlipDur(i-1) : 0);
     return Math.max(0.5, d);
   }
   return state.holdDur;                        // 图片：统一默认（2.5s）
+}
+function sceneFlipDur(i){
+  const f = parseFloat(state.scenes[i] && state.scenes[i].flip);
+  return (isFinite(f) && f >= 0.2) ? f : state.flipDur;
 }
 function buildTimeline(){
   segs = [];
@@ -1206,7 +1216,7 @@ function buildTimeline(){
   const n = state.scenes.length;
   for(let i=0;i<n;i++){
     segs.push({type:'hold', scene:i, dur:sceneHold(i)});
-    if(i < n-1) segs.push({type:'flip', from:i, dur:state.flipDur});
+    if(i < n-1) segs.push({type:'flip', from:i, dur:sceneFlipDur(i)});
   }
   segs.push({type:'end', dur:Math.max(0.01, state.endHold)});
   let t = 0;
@@ -1454,8 +1464,17 @@ function renderScenes(){
     inp2.title = tr('该场景视频播放倍速（0.25 慢 ～ 4 快）');
     inp2.addEventListener('click', e=>e.stopPropagation());
     inp2.addEventListener('change', ()=>{ sc.rate = inp2.value; buildTimeline(); });
+    const lb3 = document.createElement('span'); lb3.textContent = tr('翻页(s)');
+    const inp3 = document.createElement('input');
+    inp3.type = 'number'; inp3.min = '0.2'; inp3.max = '6'; inp3.step = '0.05';
+    inp3.placeholder = String(state.flipDur);
+    inp3.value = sc.flip || '';
+    inp3.title = tr('该页翻走的时长，留空 = 全局翻页时长');
+    inp3.addEventListener('click', e=>e.stopPropagation());
+    inp3.addEventListener('change', ()=>{ sc.flip = inp3.value; buildTimeline(); });
     foot.appendChild(lb); foot.appendChild(inp);
     foot.appendChild(lb2); foot.appendChild(inp2);
+    foot.appendChild(lb3); foot.appendChild(inp3);
     card.appendChild(foot);
     // 拖拽排序
     card.draggable = true;
@@ -1599,7 +1618,7 @@ document.getElementById('cCrL').addEventListener('input', e=>{ state.creaseColL 
 document.getElementById('cCrR').addEventListener('input', e=>{ state.creaseColR = e.target.value; drawCrease(); });
 bindRange('#rClosed','#vClosed','closedHold','s', buildTimeline);
 bindRange('#rOpen','#vOpen','openDur','s', buildTimeline);
-bindRange('#rFlip','#vFlip','flipDur','s', buildTimeline);
+bindRange('#rFlip','#vFlip','flipDur','s', ()=>{ buildTimeline(); renderScenes(); });
 bindRange('#rLead','#vLead','flipLead','s', ()=>{ buildTimeline(); renderScenes(); });
 bindRange('#rHold','#vHold','holdDur','s', ()=>{ buildTimeline(); renderScenes(); });
 bindRange('#rEnd','#vEnd','endHold','s', buildTimeline);
