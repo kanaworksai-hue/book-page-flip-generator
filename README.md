@@ -27,4 +27,4 @@ Open `index.html` in Chrome or Edge (required for video/PNG export), or use the 
 
 ## License
 
-MIT © tokyoaivisuals
+MIT © 東京AI映像合同会社
